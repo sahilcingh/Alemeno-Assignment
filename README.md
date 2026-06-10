@@ -1,13 +1,13 @@
 # Transaction Processing Pipeline
 
-A backend API that accepts messy financial CSVs, processes them through a job queue, uses Gemini 1.5 Flash to classify transactions and detect anomalies, and exposes the results via a polling API.
+A backend API that accepts messy financial CSVs, processes them through a job queue, uses an LLM to classify transactions and flag anomalies, and exposes the results via a polling API.
 
 ## Stack
 
 - **FastAPI** — async API framework, auto Swagger docs at `/docs`
 - **Celery + Redis** — background job queue with retry support
 - **PostgreSQL** — stores jobs, cleaned transactions, and summaries
-- **Gemini 1.5 Flash** — free-tier LLM for category classification and narrative generation
+- **Groq (LLaMA 3.1 8B)** — free-tier LLM for category classification and narrative generation
 - **Docker Compose** — single command to run everything
 
 ## Setup
@@ -15,11 +15,13 @@ A backend API that accepts messy financial CSVs, processes them through a job qu
 **Prerequisites:** Docker and Docker Compose installed.
 
 1. Clone the repo
-2. Copy the example env file and add your Gemini API key:
+2. Copy the example env file and add your Groq API key:
    ```bash
    cp .env.example .env
-   # edit .env and set GEMINI_API_KEY=your_actual_key
+   # edit .env and set GROQ_API_KEY=your_actual_key
    ```
+   Get a free Groq API key at [console.groq.com](https://console.groq.com)
+
 3. Start everything:
    ```bash
    docker compose up --build
@@ -83,7 +85,7 @@ When a CSV is uploaded:
 2. Worker picks it up → `status=processing`
 3. **Data cleaning** — normalise dates to ISO 8601, strip `$` from amounts, uppercase status/currency, fill blank categories with `Uncategorised`, remove exact duplicates
 4. **Anomaly detection** — flag amounts > 3× the account's median as `statistical_outlier`; flag USD charges on domestic-only merchants (Swiggy, Ola, IRCTC etc.) as `currency_mismatch`
-5. **LLM classification** — transactions still `Uncategorised` after cleaning get batched (20 at a time) and sent to Gemini for category assignment
+5. **LLM classification** — transactions still `Uncategorised` after cleaning get batched (20 at a time) and sent to the LLM for category assignment
 6. **LLM narrative** — one final call produces total spend by currency, top 3 merchants, anomaly count, a 2-3 sentence narrative, and a `risk_level`
 7. `status=completed`, results queryable
 
@@ -101,4 +103,4 @@ LLM calls retry up to 3 times with exponential backoff. If a batch exhausts all 
 
 - Tables are created automatically on API startup via `Base.metadata.create_all`. For a production setup you'd swap this for Alembic migrations.
 - Both `api` and `worker` use the same Docker image, just different start commands. The `uploads` volume is shared between them so the worker can read the CSV the API saved.
-- The Gemini free tier is more than enough for 90 rows — the classification is done in ~5 batches.
+- Groq's free tier has generous rate limits — classification of 90 rows completes in a couple of seconds.
