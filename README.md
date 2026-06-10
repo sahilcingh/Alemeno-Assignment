@@ -95,7 +95,7 @@ LLM calls retry up to 3 times with exponential backoff. If a batch exhausts all 
 
 ## Architecture Diagram
 
-[View on draw.io](YOUR_DIAGRAM_LINK_HERE)
+[View Architecture Diagram](https://drive.google.com/file/d/1vrqwT_VDcnjzOVwrE0xtWu86m5wi42nH/view?usp=sharing)
 
 ---
 
